@@ -1,80 +1,81 @@
 "use strict";
 
 class Camera {
-    constructor(x, y, r, zoom) {
+    constructor(x, y, r) {
 
-        this.x = x;
-        this.y = y;
-        this.r = r;
+        this.position = new Point(x, y);
+        this.rotation = r;
+    }
+}
 
-        this.vx = 0;
-        this.vy = 0;
-        this.vr = 0;
+class Body {
 
-        this.zoom = zoom;
+    constructor(width, height) {
+
+        this.shape = Shape.rectangle(width, height);
+
+        this.position = new Point(0, 0);
+        this.rotation = 0;
+
+        this.velocity = new Point(0, 0);
+    }
+
+    draw(camera, canvas, logMap) {
+        this.shape.project(new Camera(0, 0, -this.rotation), logMap).draw(camera, canvas, logMap);
+    }
+
+    move(logMap) {
+
     }
 }
 
 class Shape {
 
-    constructor(lineList) {
-        this.lineList = lineList;
-    }
-
-    project(camera, logMap) {
-        let lineList1 = [];
-        for (let line of this.lineList) {
-            let line1 = line.project(camera, logMap);
-            lineList1.push(line1);
-        }
-        return new Shape(lineList1);
-    }
-
-    draw(camera, ctx, lineWidth, strokeStyle, logMap) {
-        for (let line of this.lineList) {
-            line.draw(camera, ctx, lineWidth, strokeStyle, logMap);
-        }
-    }
-}
-
-class Line {
-
     constructor(pointList) {
         this.pointList = pointList;
     }
 
-    project(camera, logMap) {
-        let pointList1 = [];
-        for (let point of this.pointList) {
-            let point1 = point.project(camera, logMap);
-            pointList1.push(point1);
-        }
-        return new Line(pointList1);
+    static rectangle(width, height) {
+        return new Shape([
+            new Point(-width / 2, -height / 2),
+            new Point(width / 2, -height / 2),
+            new Point(width / 2, height / 2),
+            new Point(-width / 2, height / 2)
+        ]);
     }
 
-    draw(camera, ctx, lineWidth, strokeStyle, logMap) {
+    project(camera, logMap) {
+        let pointList1 = [];
+        for (let point of this.pointList) { pointList1.push(point.project(camera)); }
+        return new Shape(pointList1);
+    }
 
-        ctx.beginPath();
+    draw(camera, canvas, logMap) {
+
+        let ctx = canvas.getContext("2d");
+        let centerScreen = new Point(ctx.canvas.width / 2, ctx.canvas.height / 2);
 
         var isFirst = true;
         for (let point of this.pointList) {
 
-            let point1 = point.project(camera, logMap);
+            let point1 = point.project(camera).plus(centerScreen);
 
-            if (!isFirst) {
+            if (isFirst) {
                 isFirst = false;
-                ctx.moveTo(point1.x + ctx.canvas.width / 2, point1.y + ctx.canvas.height / 2);
+                ctx.beginPath();
+                ctx.moveTo(point1.x, point1.y);
             } else {
-                ctx.lineTo(point1.x + ctx.canvas.width / 2, point1.y + ctx.canvas.height / 2);
+                ctx.lineTo(point1.x, point1.y);
             }
         }
+        ctx.closePath();
 
-        ctx.lineWidth = lineWidth;
-        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#000000";
         ctx.stroke();
 
         ctx.lineWidth = 1;
-        ctx.strokeStyle = "#FFFFFF";
+        ctx.strokeStyle = "#000000";
     }
 }
 
@@ -85,16 +86,17 @@ class Point {
         this.y = y;
     }
 
-    project(camera, logMap) {
-
-        let zoom = 2 ** (camera.zoom / 4);
-
-        let nx = (this.x - camera.x) / zoom;
-        let ny = (this.y - camera.y) / zoom;
-
-        let nnx = nx * Math.cos(camera.r) - ny * Math.sin(camera.r);
-        let nny = ny * Math.cos(camera.r) + nx * Math.sin(camera.r);
-
-        return new Point(nnx, nny);
+    static radial(radius, angle) {
+        return new Point(radius * Math.cos(angle), radius * Math.sin(angle));
     }
+
+    unit() {
+        let hypot = Math.hypot(this.x, this.y);
+        return new Point(this.x / hypot, this.y / hypot);
+    }
+
+    plus(point) { return new Point(this.x + point.x, this.y + point.y); }
+    minus(point) { return new Point(this.x - point.x, this.y - point.y); }
+    times(point) { return new Point(this.x * point.x - this.y * point.y, this.x * point.y + this.y * point.x); }
+    project(camera) { return this.minus(camera.position).times(Point.radial(1, -camera.rotation)); }
 }

@@ -2,12 +2,15 @@
 
 class Simulator {
 
-    constructor() {
+    constructor(canvas, log) {
 
-        this.version = "V0.0.1 (2021-05-23)";
+        this.version = "V0.0.1 (2021-05-26)";
 
-        this.c = document.getElementById("simulator");
-        this.ctx = this.c.getContext("2d");
+        this.canvas = canvas;
+        this.log = log;
+
+        this.camera = new Camera(0, 0, 0);
+        this.bodyList = [];
         this.logMap = {};
 
         this.initiate();
@@ -21,7 +24,8 @@ class Simulator {
     }
 
     buildMap() {
-
+        let car = new Body(100, 200);
+        this.bodyList.push(car);
     }
 
     async simLoop() {
@@ -30,8 +34,36 @@ class Simulator {
 
         while (true) {
 
+            this.draw();
+            this.move();
+            this.outputLog();
+
             await timer(1);
         }
+    }
+
+    draw() {
+
+        let ctx = this.canvas.getContext("2d");
+
+        ctx.beginPath();
+        ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fill();
+
+        for (const body of this.bodyList) {
+            body.draw(this.camera, this.canvas, this.logMap);
+        }
+    }
+
+    move() {
+        for (const body of this.bodyList) {
+            body.move(this.logMap);
+        }
+    }
+
+    outputLog() {
+
     }
 
     keydown(event) {
